@@ -14,12 +14,11 @@ import os.path
 import time
 
 BATCH_SIZE = 32
-NUM_NEG = 15
+PATIENCE = 30
 UNK = 'unk'
 
 class MaxMarginEncoder():
     def __init__(self, embed_size, hidden_size, model_name, train_file=None, val_file=None):
-        print('start')
         self.model_name = model_name
         self.model = dy.ParameterCollection()
 
@@ -40,7 +39,7 @@ class MaxMarginEncoder():
             self.model.populate(self.model_name)
             print("Populated! " + self.model_name)
 
-        print('done')
+        print('init done')
 
     def read_train(self, file_name):
         parallel_data = []
@@ -78,11 +77,10 @@ class MaxMarginEncoder():
 
     def convert(self, entries, vocab, lookup, fwd, bwd):
         all_reps = []
-        for i in range(0, len(entries), 512):
+        batch_size = 512
+        for i in range(0, len(entries), batch_size):
             dy.renew_cg()
-            if i % 5120 == 0:
-                print(i)
-            cur_size = min(512, len(entries)-i)
+            cur_size = min(batch_size, len(entries)-i)
             batch = entries[i:i+cur_size]
             temps = [[self.char2int(vocab, x) for x in entry] for entry in batch]
             embs = [[lookup[y] for y in temp] for temp in temps]
@@ -131,7 +129,6 @@ class MaxMarginEncoder():
 
     def calculate_loss(self, words):
         dy.renew_cg()
-        losses = []
         embs = [([self.source_lookup[x] for x in s],[self.target_lookup[y] for y in t]) for s, t in words]
         source_word_reps = [dy.concatenate([self.source_lstm_forward.initial_state().transduce(emb)[-1], self.source_lstm_backward.initial_state().transduce(reversed(emb))[-1]]) for emb,target in embs]
         source_reps_norm = [dy.cdiv(rep, dy.l2_norm(rep)) for rep in source_word_reps]
@@ -173,7 +170,7 @@ class MaxMarginEncoder():
                     last_updated = ep
                     print('Saved: %0.4f' % best_recall)
                     self.model.save(self.model_name)
-                elif ep-last_updated > 29:
+                elif ep-last_updated == PATIENCE:
                     break
 
 
@@ -182,13 +179,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--epochs', default='300')
     parser.add_argument('--trainer', default='sgd')
+    parser.add_argument('--char_embed_size', default='64')
+    parser.add_argument('--lstm_size', default='512')
     parser.add_argument('--train_file')
     parser.add_argument('--val_file')
     parser.add_argument('--model_file', default='out')
     args, unknown = parser.parse_known_args()
 
     sys.stdout=open(args.model_file.split('/')[-1] + '_' + args.trainer + '.log', 'w', 0)
-    mm_encoder = MaxMarginEncoder(64, 1024, args.model_file, args.train_file, args.val_file)
+    mm_encoder = MaxMarginEncoder(int(args.char_embed_size), int(args.lstm_size)*2, args.model_file, args.train_file, args.val_file)
     mm_encoder.train(int(args.epochs), args.trainer)
     sys.stdout.close()
 

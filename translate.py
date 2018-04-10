@@ -2,6 +2,8 @@ import codecs
 import argparse
 from collections import defaultdict
 
+NIL = 'NIL'
+
 class TranslateLinking(object):
     def __init__(self, kb, lexicon):
         self.kb = {}
@@ -36,12 +38,12 @@ class TranslateLinking(object):
         if ent in self.kb:
             return self.kb[ent]            
         
-        for transx in self.get_translation(self.ent, self.lex).keys():
+        for transx in self.get_translation(ent, self.lex).keys():
             trans = transx.strip()
             if trans in self.kb:
                 return self.kb[trans]
 
-        return 'NIL'   
+        return NIL   
         
 
 parser = argparse.ArgumentParser()
