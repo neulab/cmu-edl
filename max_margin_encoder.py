@@ -16,6 +16,8 @@ import panphon as pp
 
 BATCH_SIZE = 64
 ENCODE_BATCH = 512
+PATIENCE = 50
+EPOCH_CHECK = 5
 VEC_SIZE = 22
 UNK = 'unk'
 SRC = 'src'
@@ -125,7 +127,10 @@ class MaxMarginEncoder():
                 print(i)
             cur_size = min(ENCODE_BATCH, len(entries)-i)
             batch = entries[i:i+cur_size]
-            temps = [[self.char2int(vocab, x) for x in entry] for entry in batch]
+            if self.panphon:
+                pass
+            else:
+                temps = [[self.char2int(vocab, x) for x in entry] for entry in batch]
             embs = [[self.get_embedding(y, word_type) for y in temp] for temp in temps]
             reps = [dy.concatenate([fwd.initial_state().transduce(emb)[-1], bwd.initial_state().transduce(reversed(emb))[-1]]) for emb in embs]
             reps_norm = [dy.cdiv(rep,dy.l2_norm(rep)).value() for rep in reps]
@@ -212,7 +217,7 @@ class MaxMarginEncoder():
 
             print("Train loss: %f" % (ep_loss/len(self.training_data)))
 
-            if ep % 5 == 0:
+            if ep % EPOCH_CHECK == 0:
                 recall = self.get_val_recall()
                 if recall > best_recall:
                     best_recall = recall
@@ -220,7 +225,7 @@ class MaxMarginEncoder():
                     print('Saved: %0.4f' % best_recall)
                     self.model.save(self.model_name)    
             
-            if ep-last_updated > 50:
+            if ep-last_updated > PATIENCE:
                 break
 
 
