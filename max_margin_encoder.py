@@ -64,13 +64,14 @@ class MaxMarginEncoder():
                     source = self.get_feature(spl[1])
                     target = self.get_feature(spl[2])
                 else:
-                    source = [self.source_vocab[x] for x in spl[1]]
-                    target = [self.target_vocab[x] for x in spl[2]]
+                    source = [self.source_vocab[char] for char in spl[1]]
+                    target = [self.target_vocab[char] for char in spl[2]]
                 if len(source) == 0 or len(target) == 0:
                     continue
                 parallel_data.append((source, target))
-        self.source_vocab[UNK]
-        self.target_vocab[UNK]
+        if not self.panphon:
+            self.source_vocab[UNK]
+            self.target_vocab[UNK]
         return parallel_data
 
     def read_data(self, file_name):
@@ -82,8 +83,8 @@ class MaxMarginEncoder():
                     source = self.get_feature(spl[1])
                     target = self.get_feature(spl[2])
                 else:
-                    source = [self.char2int(self.source_vocab, x) for x in spl[1]]
-                    target = [self.char2int(self.target_vocab, x) for x in spl[2]]
+                    source = [self.char2int(self.source_vocab, char) for char in spl[1]]
+                    target = [self.char2int(self.target_vocab, char) for char in spl[2]]
                 if len(source) == 0 or len(target) == 0:
                     continue
                 parallel_data.append((source, target))
@@ -103,6 +104,8 @@ class MaxMarginEncoder():
         return default_feats
 
     def get_embedding(self, char, word_type):
+        # char will be panphon features if panphon (list of 22 integers) and will be character index if not.
+        # word_type not needed for panphon since transformation matrix is the same for source and target
         if self.panphon:
             w_panphon = dy.parameter(self.ws_panphon)
             b_panphon = dy.parameter(self.bs_panphon)
@@ -128,13 +131,11 @@ class MaxMarginEncoder():
             cur_size = min(ENCODE_BATCH, len(entries)-i)
             batch = entries[i:i+cur_size]
             if self.panphon:
-                pass
+                temps = [self.get_feature(entry) for entry in batch]
             else:
-                temps = [[self.char2int(vocab, x) for x in entry] for entry in batch]
+                temps = [[self.char2int(vocab, char) for char in entry] for entry in batch]
             embs = [[self.get_embedding(y, word_type) for y in temp] for temp in temps]
-            reps = [dy.concatenate([fwd.initial_state().transduce(emb)[-1], bwd.initial_state().transduce(reversed(emb))[-1]]) for emb in embs]
-            reps_norm = [dy.cdiv(rep,dy.l2_norm(rep)).value() for rep in reps]
-            all_reps += reps_norm
+            all_reps += self.get_normalized_reps(embs, fwd, bwd, encode=True)
         return np.array(all_reps)
 
     def get_val_recall(self):

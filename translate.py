@@ -51,10 +51,7 @@ parser.add_argument('--test_file')
 parser.add_argument('--kb', default='en_kb')
 parser.add_argument('--lexicon')
 parser.add_argument('--output', default='output')
-# parser.add_argument('--threshold', default='1.0')
 args = parser.parse_args()
-
-# sim_threshold = float(args.threshold)
 
 translate_model = TranslateLinking(args.kb, args.lexicon)
 
