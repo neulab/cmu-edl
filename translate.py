@@ -3,6 +3,7 @@ import argparse
 from collections import defaultdict
 
 NIL = 'NIL'
+MAX_SCORE = 1.0
 
 class TranslateLinking(object):
     def __init__(self, kb, lexicon):
@@ -13,7 +14,8 @@ class TranslateLinking(object):
             for line in f:
                 spl = line.strip().split(' ||| ')
                 self.kb[spl[1]] = spl[0]
-
+        
+        # each line of the lexicon is  --> english ||| LRL word
         with codecs.open(lexicon, 'r', 'utf8') as f:
             for line in f:
                 spl = line.strip().split(' ||| ')
@@ -36,12 +38,20 @@ class TranslateLinking(object):
 
     def link_entity(self, ent):
         if ent in self.kb:
-            return self.kb[ent]            
+            return self.kb[ent]     
         
         for transx in self.get_translation(ent, self.lex).keys():
             trans = transx.strip()
             if trans in self.kb:
                 return self.kb[trans]
+
+            s1 = set(trans.split())
+
+            for k,v in self.kb.iteritems():
+                s2 = set(k.split())
+                jac = (1.0*len(s1.intersection(s2)))/len(s1.union(s2))
+                if jac == MAX_SCORE:
+                    return v
 
         return NIL   
         
