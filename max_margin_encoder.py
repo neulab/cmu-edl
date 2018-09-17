@@ -116,11 +116,11 @@ class MaxMarginEncoder():
             elif word_type == TGT:
                 return self.target_lookup[char]        
 
-    def encode(self, entries, source=True):
-        if source:
-            return self.convert(entries, self.source_vocab, SRC, self.source_lstm_forward, self.source_lstm_backward)
+    def encode(self, entries, word_type):
+        if word_type == SRC:
+            return self.convert(entries, self.source_vocab, word_type, self.source_lstm_forward, self.source_lstm_backward)
         else:
-            return self.convert(entries, self.target_vocab, TGT, self.target_lstm_forward, self.target_lstm_backward)
+            return self.convert(entries, self.target_vocab, word_type, self.target_lstm_forward, self.target_lstm_backward)
 
     def convert(self, entries, vocab, word_type, fwd, bwd):
         all_reps = []

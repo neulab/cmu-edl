@@ -1,3 +1,6 @@
+'''
+Encodes input file with given trained encoder (either source or target).
+'''
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -14,43 +17,48 @@ import os.path
 import max_margin_encoder as mme
 import time
 
+ENCODING_FOLDER = 'encodings'
+TARGET_PREFIX = 'target_'
+SOURCE_PREFIX = 'source_'
+SRC = 'src'
+TGT = 'tgt'
+
 t0 = time.time()
 print('Start: ' + str(t0))
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--model_embed_size', default='64')
+parser.add_argument('--model_hidden_size', default='1024')
+parser.add_argument('--panphon', default='0')
 parser.add_argument('--parallel_file')
+parser.add_argument('--lor_file')
 parser.add_argument('--mme_trainfile')
 parser.add_argument('--source_file')
 parser.add_argument('--model_name')
 args, unknown = parser.parse_known_args()
 
-if not os.path.exists('encodings/' + args.model_name.split('/')[-1]):
-    os.makedirs('encodings/' + args.model_name.split('/')[-1])
-
-sources = []
-targets = []
-
-mme_model = mme.MaxMarginEncoder(64, 1024, args.model_name, args.mme_trainfile)
+mme_model = mme.MaxMarginEncoder(int(args.model_embed_size), int(args.model_hidden_size), int(args.panphon), args.model_name, load_model=True, train_file=args.mme_trainfile)
 
 if args.parallel_file:
+    targets = []
     with codecs.open(args.parallel_file, 'r', 'utf8') as f:
         for line in f:
             spl = line.strip().split(' ||| ')
-            sources.append(spl[1])
             targets.append(spl[2])
 
-    # np.save('encodings/source_' + args.parallel_file.split('/')[-1], mme_model.encode(sources, True))
-    print('encodings/' + args.model_name.split('/')[-1] + '/target_' + args.parallel_file.split('/')[-1])
-    print(len(targets))
-    np.save('encodings/' + args.model_name.split('/')[-1] + '/target_' + args.parallel_file.split('/')[-1], mme_model.encode(targets, False))
+    output_path = os.path.join(ENCODING_FOLDER, args.model_name.split('/')[-1], TARGET_PREFIX + args.parallel_file.split('/')[-1])
+    np.save(output_path, mme_model.encode(targets, TGT))
 
 if args.source_file:
+    sources = []
     reps = []
     with codecs.open(args.source_file, 'r', 'utf8') as f:
         for line in f:
             spl = line.strip().split(' ||| ')
-            sources.append(spl[1])
-    np.save('encodings/' + args.model_name.split('/')[-1] + '/source_' + args.source_file.split('/')[-1], mme_model.encode(sources, True))
+            sources.append(spl[1].strip())
+            
+    output_path = os.path.join(ENCODING_FOLDER,  args.model_name.split('/')[-1], SOURCE_PREFIX + args.source_file.split('/')[-1])
+    np.save(output_path, mme_model.encode(sources, SRC))
 
 t1 = time.time()
 total = t1-t0
